@@ -55,6 +55,8 @@ import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 import java.io.InputStreamReader
 import com.opencsv.CSVReader
+import es.igalvit.quizappfromcsv.data.QuestionRepository
+import es.igalvit.quizappfromcsv.data.RealQuestionRepository
 
 /**
  * Data class representing a single quiz question with its options and metadata.
@@ -148,17 +150,29 @@ class MainActivity : ComponentActivity() {
     /** URI of the currently selected CSV file */
     private var selectedFileUri: Uri? = null
 
+    // Add repository as a property that can be injected
+    private var repository: QuestionRepository = RealQuestionRepository()
+    private var questionState: (List<QuizQuestion>) -> Unit = {}
+
+    // Add function to set repository for testing
+    fun setRepository(testRepository: QuestionRepository) {
+        repository = testRepository
+    }
+
+    // Add function to set questions directly for testing
+    fun setQuestions(questions: List<QuizQuestion>) {
+        questionState(questions)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        var questionState: (List<QuizQuestion>) -> Unit = {}
 
         // Initialize Activity Result Launcher first
         pickCsvFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             selectedFileUri = uri
             if (uri != null) {
-                val parsedQuestions = parseCsvFile(contentResolver, uri)
+                val parsedQuestions = repository.loadQuestionsFromCsv(contentResolver, uri)
                 questionState(parsedQuestions)
             }
         }

@@ -7,6 +7,7 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.compose.ui.unit.dp
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -17,6 +18,14 @@ class MainActivityTest {
     private val copyright = "© 2025 This work is dedicated to the public domain under CC0 1.0 Universal"
     private val appTitle = "Quiz App"
     private val pickFileButton = "Pick CSV File"
+
+    private lateinit var testRepository: TestQuestionRepository
+
+    @Before
+    fun setup() {
+        testRepository = TestQuestionRepository()
+        composeTestRule.activity.setRepository(testRepository)
+    }
 
     @Test
     fun initialScreenElements_areDisplayed() {
@@ -109,5 +118,52 @@ class MainActivityTest {
             .assertExists()
             .assertIsDisplayed()
             .assertHeightIsAtLeast(24.dp)
+    }
+
+    @Test
+    fun questionDisplay_withTestData_showsCorrectQuestion() {
+        // Simulate loading questions
+        composeTestRule.activity.runOnUiThread {
+            val questions = testRepository.getQuestions()
+            (composeTestRule.activity as MainActivity).setQuestions(questions)
+        }
+
+        // Verify first question is displayed
+        composeTestRule.onNodeWithText("Test Question 1").assertExists()
+
+        // Verify options are displayed
+        composeTestRule.onNodeWithText("A: Option A").assertExists()
+        composeTestRule.onNodeWithText("B: Option B").assertExists()
+    }
+
+    @Test
+    fun answerSelection_withTestData_showsFeedback() {
+        // Load questions and select an answer
+        composeTestRule.activity.runOnUiThread {
+            val questions = testRepository.getQuestions()
+            (composeTestRule.activity as MainActivity).setQuestions(questions)
+        }
+
+        // Click the correct answer (Option A for first question)
+        composeTestRule.onNodeWithText("A: Option A").performClick()
+
+        // Verify feedback is shown
+        composeTestRule.onNodeWithText("Correct!").assertExists()
+    }
+
+    @Test
+    fun groupFilter_withTestData_showsGroups() {
+        // Load questions
+        composeTestRule.activity.runOnUiThread {
+            val questions = testRepository.getQuestions()
+            (composeTestRule.activity as MainActivity).setQuestions(questions)
+        }
+
+        // Click group filter
+        composeTestRule.onNodeWithText("All").performClick()
+
+        // Verify groups are shown
+        composeTestRule.onNodeWithText("1-50").assertExists()
+        composeTestRule.onNodeWithText("51-100").assertExists()
     }
 }
