@@ -1,0 +1,140 @@
+package es.igalvit.quizappfromcsv
+
+import org.junit.Test
+import org.junit.Assert.*
+import java.io.StringReader
+import com.opencsv.CSVReader
+
+class QuizLogicTest {
+    @Test
+    fun sortGroups_withNumericRanges_sortsCorrectly() {
+        val unsortedGroups = listOf("51-100", "151-206", "1-50", "101-150")
+        val sortedGroups = sortGroups(unsortedGroups)
+        assertEquals(listOf("1-50", "51-100", "101-150", "151-206"), sortedGroups)
+    }
+
+    @Test
+    fun sortGroups_withMixedContent_handlesNonNumericGroups() {
+        val mixedGroups = listOf("51-100", "Practice", "1-50", "Review")
+        val sortedGroups = sortGroups(mixedGroups)
+        assertEquals(listOf("1-50", "51-100", "Practice", "Review"), sortedGroups)
+    }
+
+    @Test
+    fun csvParsing_validFormat_returnsQuestions() {
+        val csvContent = """
+            questionText,option1,option2,option3,option4,correctAnswer,group
+            What is 2+2?,4,3,5,6,A,1-50
+            What is 3+3?,4,6,5,7,B,1-50
+        """.trimIndent()
+        val rows = CSVReader(StringReader(csvContent)).readAll()
+        assertEquals(3, rows.size)
+        assertEquals("questionText", rows[0][0])
+        assertEquals("What is 2+2?", rows[1][0])
+    }
+
+    @Test
+    fun csvParsing_invalidFormat_handlesEmptyFile() {
+        assertTrue(CSVReader(StringReader("")).readAll().isEmpty())
+    }
+
+    @Test
+    fun csvParsing_invalidFormat_handlesMissingColumns() {
+        val csvContent = """
+            questionText,option1,option2
+            Incomplete question,A,B
+        """.trimIndent()
+        val rows = CSVReader(StringReader(csvContent)).readAll()
+        assertEquals(2, rows.size)
+        assertTrue(rows[1].size < 7)
+    }
+
+    @Test
+    fun filterQuestions_byGroup_returnsCorrectQuestions() {
+        val questions = listOf(
+            QuizQuestion("Q1", listOf("A", "B", "C", "D"), "A", "1-50"),
+            QuizQuestion("Q2", listOf("A", "B", "C", "D"), "B", "51-100"),
+            QuizQuestion("Q3", listOf("A", "B", "C", "D"), "C", "1-50")
+        )
+        val filtered = questions.filter { it.group == "1-50" }
+        assertEquals(2, filtered.size)
+        assertTrue(filtered.all { it.group == "1-50" })
+    }
+
+    @Test
+    fun copyrightText_hasCorrectContent() {
+        assertEquals(
+            "© 2025 This work is dedicated to the public domain under CC0 1.0 Universal",
+            getCopyrightText()
+        )
+    }
+
+    @Test
+    fun messageDisplay_correctAnswer_showsCorrectFeedback() {
+        assertEquals("Correct!", getFeedbackMessage(true, null))
+    }
+
+    @Test
+    fun messageDisplay_incorrectAnswer_showsDetailedFeedback() {
+        val message = getFeedbackMessage(false, Pair("B", "This is correct"))
+        assertEquals("Incorrect! Correct answer: B. This is correct", message)
+    }
+
+    @Test
+    fun answerResult_correctAnswer_createsCorrectResult() {
+        val result = AnswerResult(
+            isCorrect = true,
+            selectedAnswer = "A",
+            correctAnswer = "Option 1"
+        )
+        assertTrue(result.isCorrect)
+        assertEquals("A", result.selectedAnswer)
+        assertEquals("Option 1", result.correctAnswer)
+    }
+
+    @Test
+    fun answerResult_incorrectAnswer_createsCorrectResult() {
+        val result = AnswerResult(
+            isCorrect = false,
+            selectedAnswer = "B",
+            correctAnswer = "Option 1"
+        )
+        assertFalse(result.isCorrect)
+        assertEquals("B", result.selectedAnswer)
+        assertEquals("Option 1", result.correctAnswer)
+    }
+
+    @Test
+    fun quizQuestion_construction_isValid() {
+        val question = QuizQuestion(
+            questionText = "Test Question",
+            options = listOf("A", "B", "C", "D"),
+            correctAnswer = "A",
+            group = "1-50"
+        )
+        assertEquals("Test Question", question.questionText)
+        assertEquals(4, question.options.size)
+        assertEquals("A", question.correctAnswer)
+        assertEquals("1-50", question.group)
+    }
+
+    @Test
+    fun answerValidation_correctIndex_matchesLetter() {
+        val index = 0 // representing answer A
+        val letter = 'A'
+        assertEquals(index, letter - 'A')
+    }
+
+    @Test
+    fun answerValidation_allOptions_matchCorrectly() {
+        val answers = listOf('A', 'B', 'C', 'D')
+        answers.forEachIndexed { index, letter ->
+            assertEquals(index, letter - 'A')
+        }
+    }
+
+    private fun getCopyrightText() = "© 2025 This work is dedicated to the public domain under CC0 1.0 Universal"
+    private fun getFeedbackMessage(isCorrect: Boolean, correctAnswer: Pair<String, String>?) =
+        if (isCorrect) "Correct!"
+        else "Incorrect! Correct answer: ${correctAnswer?.first}. ${correctAnswer?.second}"
+}

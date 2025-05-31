@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.45"
+        android:scaleY="0.45"
+        android:translateX="29.7"
+        android:translateY="29.7">
+        <!-- Speech bubble with Q -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M80,0H28C12.536,0 0,12.536 0,28v44c0,15.464 12.536,28 28,28h14l-8,28l32,-28h14c15.464,0 28,-12.536 28,-28V28C108,12.536 95.464,0 80,0zM54,70c-13.255,0 -24,-10.745 -24,-24s10.745,-24 24,-24s24,10.745 24,24c0,4.081 -1.023,7.927 -2.82,11.295l6.82,6.705h-14.031C63.728,67.757 59.071,70 54,70zM66,46c0,6.627 -5.373,12 -12,12s-12,-5.373 -12,-12s5.373,-12 12,-12S66,39.373 66,46z"/>
+    </group>
+</vector>
+
