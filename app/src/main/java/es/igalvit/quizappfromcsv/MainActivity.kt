@@ -68,16 +68,19 @@ import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 import java.io.InputStreamReader
 import com.opencsv.CSVReader
+import com.opencsv.CSVReaderBuilder
+import com.opencsv.CSVParserBuilder
 import es.igalvit.quizappfromcsv.data.QuestionRepository
 import es.igalvit.quizappfromcsv.data.RealQuestionRepository
 
 /**
- * Data class representing a single quiz question with its options and metadata.
+ * Data class representing a quiz question with all its associated information.
+ * This class is designed to be Parcelable for safe state handling in the Android lifecycle.
  *
- * @property questionText The text of the question to be displayed
- * @property options List of possible answers (4 options: A, B, C, D)
- * @property correctAnswer The correct answer identifier (A, B, C, or D)
- * @property group The question group identifier for filtering
+ * @property questionText The main text of the question to be displayed to the user
+ * @property options A list of 4 possible answers for the question (labeled A through D)
+ * @property correctAnswer A string indicating the correct answer (must be "A", "B", "C", or "D")
+ * @property group A string identifier for grouping related questions together (e.g., "1-50", "Grammar", etc.)
  */
 @Parcelize
 data class QuizQuestion(
@@ -88,11 +91,12 @@ data class QuizQuestion(
 ) : Parcelable
 
 /**
- * Data class representing the result of the last answer.
+ * Data class representing the outcome of a user's answer to a quiz question.
+ * This class is designed to be Parcelable for safe state handling in the Android lifecycle.
  *
- * @property isCorrect Whether the answer was correct
- * @property selectedAnswer The answer selected by the user
- * @property correctAnswer The correct answer
+ * @property isCorrect Boolean indicating whether the user's answer was correct
+ * @property selectedAnswer The option (A, B, C, or D) that the user selected
+ * @property correctAnswer The text of the correct answer for displaying feedback
  */
 @Parcelize
 data class AnswerResult(
@@ -102,47 +106,116 @@ data class AnswerResult(
 ) : Parcelable
 
 /**
- * Parses a CSV file to create a list of quiz questions.
- * Expected CSV format: questionText,option1,option2,option3,option4,correctAnswer,group
- *
- * @param contentResolver ContentResolver to access the file
- * @param uri URI of the CSV file to parse
- * @return List of QuizQuestion objects, or empty list if parsing fails
+ * Sealed class representing the possible outcomes of parsing a CSV file.
+ * This helps in handling different parsing scenarios and providing appropriate feedback.
  */
-fun parseCsvFile(contentResolver: ContentResolver, uri: Uri): List<QuizQuestion> {
-    val questions = mutableListOf<QuizQuestion>()
-    val inputStream = contentResolver.openInputStream(uri) ?: return emptyList()
-    val reader = CSVReader(InputStreamReader(inputStream))
-    val rows: List<Array<String>> = reader.readAll()
-    if (rows.isEmpty()) return emptyList()
-    val header: Array<String> = rows[0]
-    val idxQuestion = header.indexOf("questionText")
-    val idxOption1 = header.indexOf("option1")
-    val idxOption2 = header.indexOf("option2")
-    val idxOption3 = header.indexOf("option3")
-    val idxOption4 = header.indexOf("option4")
-    val idxCorrect = header.indexOf("correctAnswer")
-    val idxGroup = header.indexOf("group")
-    for (row in rows.drop(1)) {
-        if (row.size < header.size) continue
-        questions.add(
-            QuizQuestion(
-                questionText = row[idxQuestion],
-                options = listOf(row[idxOption1], row[idxOption2], row[idxOption3], row[idxOption4]),
-                correctAnswer = row[idxCorrect],
-                group = row[idxGroup]
-            )
-        )
-    }
-    return questions
+sealed class CsvParseResult {
+    /**
+     * Represents a successful parsing of the CSV file.
+     * @property questions The list of parsed quiz questions
+     */
+    data class Success(val questions: List<QuizQuestion>) : CsvParseResult()
+
+    /**
+     * Represents a failure in parsing the CSV file.
+     * @property message A user-friendly error message explaining what went wrong
+     */
+    data class Error(val message: String) : CsvParseResult()
 }
 
 /**
- * Sorts question groups in natural order, handling numeric ranges in group names.
- * For example: "1-50" comes before "51-100"
+ * Parses a CSV file containing quiz questions and converts it into a list of QuizQuestion objects.
  *
- * @param groups List of group names to sort
- * @return Sorted list of group names
+ * The CSV file must follow this specific format:
+ * - Must use semicolons (;) as separators
+ * - Must contain a header row with these exact column names:
+ *   questionText;option1;option2;option3;option4;correctAnswer;group
+ * - correctAnswer must be A, B, C, or D corresponding to the option number
+ * - group can be any string to categorize questions
+ *
+ * Example CSV content:
+ * questionText;option1;option2;option3;option4;correctAnswer;group
+ * "What is 2+2?";"3";"4";"5";"6";"B";"Math"
+ *
+ * @param contentResolver Android ContentResolver to access the file
+ * @param uri URI pointing to the CSV file to parse
+ * @return List<QuizQuestion> containing the parsed questions, or empty list if parsing fails
+ * @throws IllegalArgumentException if the file is empty or missing required columns
+ */
+fun parseCsvFile(contentResolver: ContentResolver, uri: Uri): List<QuizQuestion> {
+    try {
+        val inputStream = contentResolver.openInputStream(uri) ?: return emptyList()
+        val csvReaderBuilder = CSVReaderBuilder(InputStreamReader(inputStream))
+            .withCSVParser(CSVParserBuilder()
+                .withSeparator(';')
+                .build())
+        val reader = csvReaderBuilder.build()
+
+        try {
+            val rows: List<Array<String>> = reader.readAll()
+            if (rows.isEmpty()) {
+                throw IllegalArgumentException("CSV file is empty")
+            }
+
+            val header: Array<String> = rows[0]
+            val requiredColumns = listOf("questionText", "option1", "option2", "option3", "option4", "correctAnswer", "group")
+
+            // Validate that all required columns are present
+            val missingColumns = requiredColumns.filter { !header.contains(it) }
+            if (missingColumns.isNotEmpty()) {
+                throw IllegalArgumentException("CSV file is missing required columns: ${missingColumns.joinToString()}")
+            }
+
+            val idxQuestion = header.indexOf("questionText")
+            val idxOption1 = header.indexOf("option1")
+            val idxOption2 = header.indexOf("option2")
+            val idxOption3 = header.indexOf("option3")
+            val idxOption4 = header.indexOf("option4")
+            val idxCorrect = header.indexOf("correctAnswer")
+            val idxGroup = header.indexOf("group")
+
+            val questions = mutableListOf<QuizQuestion>()
+            for (row in rows.drop(1)) {
+                if (row.size < header.size) continue
+                try {
+                    questions.add(
+                        QuizQuestion(
+                            questionText = row[idxQuestion],
+                            options = listOf(row[idxOption1], row[idxOption2], row[idxOption3], row[idxOption4]),
+                            correctAnswer = row[idxCorrect],
+                            group = row[idxGroup]
+                        )
+                    )
+                } catch (e: Exception) {
+                    // Skip malformed rows instead of failing the entire import
+                    continue
+                }
+            }
+            return questions
+        } catch (e: Exception) {
+            android.util.Log.e("CSV_PARSE", "Error parsing CSV file", e)
+            return emptyList()
+        } finally {
+            reader.close()
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("CSV_PARSE", "Error reading CSV file", e)
+        return emptyList()
+    }
+}
+
+/**
+ * Sorts a list of question groups in a natural order, making the groups appear in a logical sequence.
+ * This is particularly useful for groups that contain numeric ranges in their names.
+ *
+ * Examples of sorting:
+ * - Input: ["51-100", "1-50", "101-150"]
+ * - Output: ["1-50", "51-100", "101-150"]
+ *
+ * Non-numeric groups will be sorted after numeric ones.
+ *
+ * @param groups List of group identifiers to sort
+ * @return Sorted list of group names, with numeric ranges in natural order
  */
 internal fun sortGroups(groups: List<String>): List<String> {
     return groups.sortedBy { group ->
@@ -152,9 +225,15 @@ internal fun sortGroups(groups: List<String>): List<String> {
 }
 
 /**
- * Main activity of the Quiz application.
- * Handles file picking, question display, answer tracking, and score management.
- * Uses Jetpack Compose for the UI.
+ * Main Activity for the Quiz Application. This activity handles:
+ * - Loading and parsing CSV files containing quiz questions
+ * - Displaying questions and managing user responses
+ * - Tracking scores and providing immediate feedback
+ * - Filtering questions by groups
+ * - State preservation across configuration changes
+ *
+ * The activity uses Jetpack Compose for the UI and follows MVVM architecture patterns.
+ * It supports dynamic question loading and maintains quiz progress state.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
@@ -186,8 +265,24 @@ class MainActivity : ComponentActivity() {
         pickCsvFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             selectedFileUri = uri
             if (uri != null) {
-                val parsedQuestions = repository.loadQuestionsFromCsv(contentResolver, uri)
-                questionState(parsedQuestions)
+                try {
+                    val parsedQuestions = repository.loadQuestionsFromCsv(contentResolver, uri)
+                    if (parsedQuestions.isEmpty()) {
+                        android.widget.Toast.makeText(
+                            this,
+                            "The CSV file is not properly formatted. Please ensure it has all required columns (questionText, option1-4, correctAnswer, group) and uses semicolons as separators.",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    questionState(parsedQuestions)
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(
+                        this,
+                        "Error reading CSV file: ${e.message}",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    questionState(emptyList())
+                }
             }
         }
 
@@ -641,3 +736,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+

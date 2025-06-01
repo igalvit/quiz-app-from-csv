@@ -7,6 +7,8 @@ import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.compose.ui.unit.dp
+import android.content.ContentResolver
+import android.net.Uri
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -238,5 +240,66 @@ class MainActivityTest {
         // Verify score display is above question text
         composeTestRule.onNodeWithText("Question")
             .assertPositionInRootIsAbove(questionTextBounds.top)
+    }
+
+    @Test
+    fun emptyCSV_showsErrorMessage() {
+        testRepository.setMockError("The CSV file is empty")
+        composeTestRule.activity.setQuestions(emptyList())
+
+        composeTestRule.waitUntil(timeoutMillis = 3000) {
+            composeTestRule
+                .onAllNodesWithText("The CSV file is empty")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun missingColumns_showsDetailedError() {
+        testRepository.setMockError("CSV file is missing required columns: option3, option4")
+        composeTestRule.activity.setQuestions(emptyList())
+
+        composeTestRule.waitUntil(timeoutMillis = 3000) {
+            composeTestRule
+                .onAllNodesWithText("CSV file is missing required columns: option3, option4")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun malformedCSV_showsFormatError() {
+        testRepository.setMockError("The CSV file is not properly formatted")
+        composeTestRule.activity.setQuestions(emptyList())
+
+        composeTestRule.waitUntil(timeoutMillis = 3000) {
+            composeTestRule
+                .onAllNodesWithText("The CSV file is not properly formatted")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    class TestQuestionRepository : QuestionRepository {
+        private var mockError: String? = null
+        private var mockQuestions: List<QuizQuestion> = emptyList()
+
+        fun setMockError(error: String) {
+            mockError = error
+        }
+
+        fun setMockQuestions(questions: List<QuizQuestion>) {
+            mockQuestions = questions
+        }
+
+        override fun loadQuestionsFromCsv(contentResolver: ContentResolver, uri: Uri): List<QuizQuestion> {
+            mockError?.let { error ->
+                // Show the error Toast
+                android.widget.Toast.makeText(
+                    composeTestRule.activity,
+                    error,
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+            return mockQuestions
+        }
     }
 }

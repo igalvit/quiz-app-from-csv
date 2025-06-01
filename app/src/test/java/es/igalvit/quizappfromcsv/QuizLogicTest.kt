@@ -4,6 +4,8 @@ import org.junit.Test
 import org.junit.Assert.*
 import java.io.StringReader
 import com.opencsv.CSVReader
+import com.opencsv.CSVReaderBuilder
+import com.opencsv.CSVParserBuilder
 
 class QuizLogicTest {
     @Test
@@ -23,11 +25,14 @@ class QuizLogicTest {
     @Test
     fun csvParsing_validFormat_returnsQuestions() {
         val csvContent = """
-            questionText,option1,option2,option3,option4,correctAnswer,group
-            What is 2+2?,4,3,5,6,A,1-50
-            What is 3+3?,4,6,5,7,B,1-50
+            questionText;option1;option2;option3;option4;correctAnswer;group
+            What is 2+2?;4;3;5;6;A;1-50
+            What is 3+3?;4;6;5;7;B;1-50
         """.trimIndent()
-        val rows = CSVReader(StringReader(csvContent)).readAll()
+        val reader = CSVReaderBuilder(StringReader(csvContent))
+            .withCSVParser(CSVParserBuilder().withSeparator(';').build())
+            .build()
+        val rows = reader.readAll()
         assertEquals(3, rows.size)
         assertEquals("questionText", rows[0][0])
         assertEquals("What is 2+2?", rows[1][0])
@@ -35,18 +40,54 @@ class QuizLogicTest {
 
     @Test
     fun csvParsing_invalidFormat_handlesEmptyFile() {
-        assertTrue(CSVReader(StringReader("")).readAll().isEmpty())
+        val reader = CSVReaderBuilder(StringReader(""))
+            .withCSVParser(CSVParserBuilder().withSeparator(';').build())
+            .build()
+        assertTrue(reader.readAll().isEmpty())
     }
 
     @Test
     fun csvParsing_invalidFormat_handlesMissingColumns() {
         val csvContent = """
-            questionText,option1,option2
-            Incomplete question,A,B
+            questionText;option1;option2
+            Incomplete question;A;B
         """.trimIndent()
-        val rows = CSVReader(StringReader(csvContent)).readAll()
+        val reader = CSVReaderBuilder(StringReader(csvContent))
+            .withCSVParser(CSVParserBuilder().withSeparator(';').build())
+            .build()
+        val rows = reader.readAll()
         assertEquals(2, rows.size)
         assertTrue(rows[1].size < 7)
+    }
+
+    @Test
+    fun csvParsing_validFormat_handlesSemicolonInContent() {
+        val csvContent = """
+            questionText;option1;option2;option3;option4;correctAnswer;group
+            "What; is this?";4;3;5;6;A;1-50
+            "Option; with; semicolons";A;B;C;D;B;1-50
+        """.trimIndent()
+        val reader = CSVReaderBuilder(StringReader(csvContent))
+            .withCSVParser(CSVParserBuilder().withSeparator(';').build())
+            .build()
+        val rows = reader.readAll()
+        assertEquals("What; is this?", rows[1][0])
+        assertEquals("Option; with; semicolons", rows[2][0])
+    }
+
+    @Test
+    fun csvParsing_validFormat_handlesQuotedContent() {
+        val csvContent = """
+            questionText;option1;option2;option3;option4;correctAnswer;group
+            "Complex; Question";"Answer; 1";"Answer; 2";"Answer; 3";"Answer; 4";A;"Group; 1"
+        """.trimIndent()
+        val reader = CSVReaderBuilder(StringReader(csvContent))
+            .withCSVParser(CSVParserBuilder().withSeparator(';').build())
+            .build()
+        val rows = reader.readAll()
+        assertEquals("Complex; Question", rows[1][0])
+        assertEquals("Answer; 1", rows[1][1])
+        assertEquals("Group; 1", rows[1][6])
     }
 
     @Test
