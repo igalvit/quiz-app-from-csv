@@ -20,22 +20,35 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -81,11 +94,12 @@ data class QuizQuestion(
  * @property selectedAnswer The answer selected by the user
  * @property correctAnswer The correct answer
  */
+@Parcelize
 data class AnswerResult(
     val isCorrect: Boolean,
     val selectedAnswer: String,
     val correctAnswer: String
-)
+) : Parcelable
 
 /**
  * Parses a CSV file to create a list of quiz questions.
@@ -168,7 +182,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Initialize Activity Result Launcher first
+        // Initialize Activity Result Launcher first, before setting content
         pickCsvFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             selectedFileUri = uri
             if (uri != null) {
@@ -187,7 +201,25 @@ class MainActivity : ComponentActivity() {
                 val incorrectCount = rememberSaveable { mutableStateOf(0) }
                 val showMessage = rememberSaveable { mutableStateOf(false) }
                 val selectedGroup = rememberSaveable { mutableStateOf("All") }
-                val lastAnswerResult = rememberSaveable { mutableStateOf<AnswerResult?>(null) }
+
+                // Split answer result into individual saveable states
+                val isCorrect = rememberSaveable { mutableStateOf<Boolean?>(null) }
+                val selectedAnswer = rememberSaveable { mutableStateOf<String?>(null) }
+                val correctAnswer = rememberSaveable { mutableStateOf<String?>(null) }
+
+                // Compute the answer result from individual states
+                val lastAnswerResult = remember {
+                    mutableStateOf<AnswerResult?>(null)
+                }.apply {
+                    if (isCorrect.value != null && selectedAnswer.value != null && correctAnswer.value != null) {
+                        value = AnswerResult(
+                            isCorrect = isCorrect.value!!,
+                            selectedAnswer = selectedAnswer.value!!,
+                            correctAnswer = correctAnswer.value!!
+                        )
+                    }
+                }
+
                 val hasAnswered = rememberSaveable { mutableStateOf(false) }
                 val scope = rememberCoroutineScope()
 
@@ -198,6 +230,38 @@ class MainActivity : ComponentActivity() {
                     currentQuestionIndex.value = 0
                     score.value = 0
                     incorrectCount.value = 0
+                    // Reset answer states
+                    isCorrect.value = null
+                    selectedAnswer.value = null
+                    correctAnswer.value = null
+                }
+
+                // Update the onClick handler for answer buttons
+                fun handleAnswer(letterAnswer: String, isAnswerCorrect: Boolean, correctAnswerText: String) {
+                    if (!hasAnswered.value) {
+                        hasAnswered.value = true
+                        showMessage.value = true
+
+                        if (isAnswerCorrect) {
+                            score.value++
+                        } else {
+                            incorrectCount.value++
+                        }
+
+                        // Update individual states
+                        isCorrect.value = isAnswerCorrect
+                        selectedAnswer.value = letterAnswer
+                        correctAnswer.value = correctAnswerText
+
+                        scope.launch {
+                            delay(2000)
+                            showMessage.value = false
+                            if (currentQuestionIndex.value < questions.value.size - 1) {
+                                currentQuestionIndex.value++
+                                hasAnswered.value = false
+                            }
+                        }
+                    }
                 }
 
                 // UI setup
@@ -213,6 +277,93 @@ class MainActivity : ComponentActivity() {
                          */
                         Column(modifier = Modifier.padding(innerPadding)) {
                             if (questions.value.isNotEmpty()) {
+                                // Progress and score display
+                                val totalQuestions = questions.value.size
+                                val questionNumber = currentQuestionIndex.value + 1
+                                val progress = questionNumber.toFloat() / totalQuestions.toFloat()
+                                val animatedProgress by animateFloatAsState(
+                                    targetValue = progress,
+                                    label = "Progress"
+                                )
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                ) {
+                                    // Progress bar
+                                    LinearProgressIndicator(
+                                        progress = animatedProgress,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    // Score statistics in a nice layout
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                color = Color(0xFFE3F2FD),
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                    ) {
+                                        // Question Progress
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "$questionNumber/$totalQuestions",
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "Question",
+                                                fontSize = 12.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+
+                                        // Correct Answers
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "${score.value}",
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF4CAF50)
+                                            )
+                                            Text(
+                                                text = "Correct",
+                                                fontSize = 12.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+
+                                        // Incorrect Answers
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                text = "${incorrectCount.value}",
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFF44336)
+                                            )
+                                            Text(
+                                                text = "Incorrect",
+                                                fontSize = 12.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+                                    }
+                                }
+
                                 // Question text display
                                 val currentQuestion = questions.value[currentQuestionIndex.value]
                                 Text(
@@ -225,17 +376,6 @@ class MainActivity : ComponentActivity() {
                                     textAlign = TextAlign.Center
                                 )
 
-                                // Progress display
-                                val totalQuestions = questions.value.size
-                                val questionNumber = currentQuestionIndex.value + 1
-                                Text(
-                                    text = "Current: $questionNumber | Total: $totalQuestions -- Correct: ${score.value} | Incorrect: ${incorrectCount.value}",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 16.dp),
-                                    textAlign = TextAlign.Center
-                                )
-
                                 // Answer options
                                 Column(
                                     modifier = Modifier
@@ -244,41 +384,21 @@ class MainActivity : ComponentActivity() {
                                 ) {
                                     currentQuestion.options.forEachIndexed { index, option ->
                                         val letterAnswer = ('A' + index).toString()
-                                        val isCorrect = index == (currentQuestion.correctAnswer[0] - 'A')
+                                        val isAnswerCorrect = index == (currentQuestion.correctAnswer[0] - 'A')
                                         val containerColor = when {
                                             !hasAnswered.value -> ButtonDefaults.buttonColors().containerColor
-                                            isCorrect -> Color(0xFF4CAF50) // Green for correct
-                                            letterAnswer == lastAnswerResult.value?.selectedAnswer -> Color(0xFFF44336) // Red for wrong
+                                            isAnswerCorrect -> Color(0xFF4CAF50) // Green for correct
+                                            letterAnswer == selectedAnswer.value -> Color(0xFFF44336) // Red for wrong
                                             else -> ButtonDefaults.buttonColors().containerColor
                                         }
 
                                         Button(
                                             onClick = {
-                                                if (!hasAnswered.value) {
-                                                    hasAnswered.value = true
-                                                    showMessage.value = true
-
-                                                    if (isCorrect) {
-                                                        score.value++
-                                                    } else {
-                                                        incorrectCount.value++
-                                                    }
-
-                                                    lastAnswerResult.value = AnswerResult(
-                                                        isCorrect = isCorrect,
-                                                        selectedAnswer = letterAnswer,
-                                                        correctAnswer = currentQuestion.options[currentQuestion.correctAnswer[0] - 'A']
-                                                    )
-
-                                                    scope.launch {
-                                                        delay(2000)
-                                                        showMessage.value = false
-                                                        if (currentQuestionIndex.value < questions.value.size - 1) {
-                                                            currentQuestionIndex.value++
-                                                            hasAnswered.value = false
-                                                        }
-                                                    }
-                                                }
+                                                handleAnswer(
+                                                    letterAnswer,
+                                                    isAnswerCorrect,
+                                                    currentQuestion.options[currentQuestion.correctAnswer[0] - 'A']
+                                                )
                                             },
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = containerColor
@@ -300,12 +420,17 @@ class MainActivity : ComponentActivity() {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                        .padding(16.dp)
+                                        .background(
+                                            Color(0xFFF5F5F5),
+                                            RoundedCornerShape(28.dp)
+                                        )
+                                        .padding(8.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     // Previous button
-                                    Button(
+                                    FilledTonalButton(
                                         onClick = {
                                             if (currentQuestionIndex.value > 0) {
                                                 currentQuestionIndex.value--
@@ -313,14 +438,22 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         enabled = currentQuestionIndex.value > 0,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color.DarkGray
-                                        )
+                                        modifier = Modifier.size(56.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = Color(0xFFE57373),
+                                            disabledContainerColor = Color(0xFFFFCDD2)
+                                        ),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
                                     ) {
-                                        Text("Previous")
+                                        Icon(
+                                            Icons.Default.ArrowBack,
+                                            contentDescription = "Previous Question",
+                                            tint = Color.White
+                                        )
                                     }
 
-                                    // Group filter dropdown
+                                    // Group filter button
                                     var expanded by remember { mutableStateOf(false) }
                                     val groups = remember(questions.value) {
                                         val allGroups = questions.value.map { it.group }.distinct()
@@ -328,13 +461,20 @@ class MainActivity : ComponentActivity() {
                                     }
 
                                     Box {
-                                        Button(
+                                        FilledTonalButton(
                                             onClick = { expanded = true },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color.LightGray
-                                            )
+                                            modifier = Modifier.size(56.dp),
+                                            shape = RoundedCornerShape(16.dp),
+                                            colors = ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = Color(0xFF9575CD) // Purple
+                                            ),
+                                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
                                         ) {
-                                            Text(selectedGroup.value)
+                                            Icon(
+                                                Icons.Default.Menu,
+                                                contentDescription = "Filter Groups",
+                                                tint = Color.White
+                                            )
                                         }
                                         DropdownMenu(
                                             expanded = expanded,
@@ -346,7 +486,6 @@ class MainActivity : ComponentActivity() {
                                                     onClick = {
                                                         selectedGroup.value = group
                                                         expanded = false
-                                                        // Filter questions by group
                                                         if (group == "All") {
                                                             questions.value = allQuestions.value
                                                         } else {
@@ -360,7 +499,7 @@ class MainActivity : ComponentActivity() {
                                     }
 
                                     // Pick new file button
-                                    Button(
+                                    FloatingActionButton(
                                         onClick = {
                                             pickCsvFileLauncher.launch(arrayOf(
                                                 "text/csv",
@@ -368,15 +507,19 @@ class MainActivity : ComponentActivity() {
                                                 "application/csv"
                                             ))
                                         },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF90CAF9) // Light Blue
-                                        )
+                                        containerColor = Color(0xFF64B5F6), // Light Blue
+                                        modifier = Modifier.size(56.dp),
+                                        shape = RoundedCornerShape(16.dp)
                                     ) {
-                                        Text("Pick CSV File")
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = "Pick CSV File",
+                                            tint = Color.White
+                                        )
                                     }
 
                                     // Next button
-                                    Button(
+                                    FilledTonalButton(
                                         onClick = {
                                             if (currentQuestionIndex.value < questions.value.size - 1) {
                                                 currentQuestionIndex.value++
@@ -384,11 +527,19 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         enabled = currentQuestionIndex.value < questions.value.size - 1,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFF4CAF50) // Green
-                                        )
+                                        modifier = Modifier.size(56.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = Color(0xFF81C784), // Light Green
+                                            disabledContainerColor = Color(0xFFC8E6C9) // Very Light Green
+                                        ),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
                                     ) {
-                                        Text("Next")
+                                        Icon(
+                                            Icons.Default.ArrowForward,
+                                            contentDescription = "Next Question",
+                                            tint = Color.White
+                                        )
                                     }
                                 }
                             } else {
