@@ -35,22 +35,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -62,12 +51,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import es.igalvit.quizappfromcsv.ui.theme.QuizAppFromCSVTheme
-import es.igalvit.quizappfromcsv.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 import java.io.InputStreamReader
-import com.opencsv.CSVReader
+import java.util.Locale
 import com.opencsv.CSVReaderBuilder
 import com.opencsv.CSVParserBuilder
 import es.igalvit.quizappfromcsv.data.QuestionRepository
@@ -317,7 +305,7 @@ class MainActivity : ComponentActivity() {
 
                 // Format time as MM:SS
                 val formattedTime = remember(elapsedSeconds.value) {
-                    String.format("%02d:%02d",
+                    String.format(Locale.US, "%02d:%02d",
                         elapsedSeconds.value / 60,
                         elapsedSeconds.value % 60
                     )
@@ -429,7 +417,7 @@ class MainActivity : ComponentActivity() {
 
                                     // Progress bar
                                     LinearProgressIndicator(
-                                        progress = animatedProgress,
+                                        progress = { animatedProgress },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(8.dp)
@@ -583,7 +571,7 @@ class MainActivity : ComponentActivity() {
                                         contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
                                     ) {
                                         Icon(
-                                            Icons.Default.ArrowBack,
+                                            Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = "Previous Question",
                                             tint = Color.White
                                         )
@@ -675,7 +663,7 @@ class MainActivity : ComponentActivity() {
                                         contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
                                     ) {
                                         Icon(
-                                            Icons.Default.ArrowForward,
+                                            Icons.AutoMirrored.Filled.ArrowForward,
                                             contentDescription = "Next Question",
                                             tint = Color.White
                                         )
