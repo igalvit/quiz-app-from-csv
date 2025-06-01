@@ -278,6 +278,53 @@ class MainActivityTest {
         }
     }
 
+    @Test
+    fun timer_isDisplayedWhenQuestionsLoaded() {
+        loadTestQuestions()
+        composeTestRule.onNodeWithText("Time: 00:00").assertExists()
+    }
+
+    @Test
+    fun timer_resetsOnGroupChange() {
+        loadTestQuestions()
+        // Change group and verify timer reset
+        composeTestRule.onNodeWithContentDescription("Filter Groups").performClick()
+        composeTestRule.onNodeWithText("1-50").performClick()
+        composeTestRule.onNodeWithText("Time: 00:00").assertExists()
+    }
+
+    @Test
+    fun timer_stopsAfterAllQuestionsAnswered() {
+        loadTestQuestions()
+        // Answer all questions
+        repeat(testRepository.getTestQuestions().size) {
+            composeTestRule.onNodeWithText("A: Option A").performClick()
+            composeTestRule.waitForIdle()
+        }
+        // Capture time after answering all questions
+        val timeAfterComplete = composeTestRule
+            .onNodeWithText(matches = Regex("Time: \\d{2}:\\d{2}"))
+            .fetchSemanticsNode()
+            .config[SemanticsProperties.Text].toString()
+
+        // Wait a moment and verify time hasn't changed
+        composeTestRule.mainClock.autoAdvance = false
+        composeTestRule.mainClock.advanceTimeBy(2000)
+        composeTestRule.onNodeWithText(timeAfterComplete).assertExists()
+    }
+
+    private fun loadTestQuestions() {
+        val questions = listOf(
+            QuizQuestion("Q1", listOf("Option A", "Option B", "Option C", "Option D"), "A", "1-50"),
+            QuizQuestion("Q2", listOf("Option A", "Option B", "Option C", "Option D"), "B", "1-50")
+        )
+        composeTestRule.activity.runOnUiThread {
+            testRepository.setMockQuestions(questions)
+            composeTestRule.activity.setQuestions(questions)
+        }
+        composeTestRule.waitForIdle()
+    }
+
     class TestQuestionRepository : QuestionRepository {
         private var mockError: String? = null
         private var mockQuestions: List<QuizQuestion> = emptyList()

@@ -296,11 +296,32 @@ class MainActivity : ComponentActivity() {
                 val incorrectCount = rememberSaveable { mutableStateOf(0) }
                 val showMessage = rememberSaveable { mutableStateOf(false) }
                 val selectedGroup = rememberSaveable { mutableStateOf("All") }
+                val hasAnswered = rememberSaveable { mutableStateOf(false) }
 
-                // Split answer result into individual saveable states
+                // Answer states
                 val isCorrect = rememberSaveable { mutableStateOf<Boolean?>(null) }
                 val selectedAnswer = rememberSaveable { mutableStateOf<String?>(null) }
                 val correctAnswer = rememberSaveable { mutableStateOf<String?>(null) }
+
+                // Timer state
+                val elapsedSeconds = rememberSaveable { mutableStateOf(0L) }
+                val isTimerRunning = rememberSaveable { mutableStateOf(false) }
+
+                // Timer effect
+                LaunchedEffect(isTimerRunning.value) {
+                    while (isTimerRunning.value) {
+                        delay(1000)
+                        elapsedSeconds.value++
+                    }
+                }
+
+                // Format time as MM:SS
+                val formattedTime = remember(elapsedSeconds.value) {
+                    String.format("%02d:%02d",
+                        elapsedSeconds.value / 60,
+                        elapsedSeconds.value % 60
+                    )
+                }
 
                 // Compute the answer result from individual states
                 val lastAnswerResult = remember {
@@ -315,7 +336,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                val hasAnswered = rememberSaveable { mutableStateOf(false) }
                 val scope = rememberCoroutineScope()
 
                 // Update question state callback
@@ -325,6 +345,10 @@ class MainActivity : ComponentActivity() {
                     currentQuestionIndex.value = 0
                     score.value = 0
                     incorrectCount.value = 0
+                    hasAnswered.value = false
+                    // Reset timer
+                    elapsedSeconds.value = 0
+                    isTimerRunning.value = !newQuestions.isEmpty()
                     // Reset answer states
                     isCorrect.value = null
                     selectedAnswer.value = null
@@ -354,6 +378,12 @@ class MainActivity : ComponentActivity() {
                             if (currentQuestionIndex.value < questions.value.size - 1) {
                                 currentQuestionIndex.value++
                                 hasAnswered.value = false
+                            }
+
+                            // Check if all questions in the group have been answered
+                            val answeredAll = (score.value + incorrectCount.value) >= questions.value.size
+                            if (answeredAll) {
+                                isTimerRunning.value = false
                             }
                         }
                     }
@@ -386,6 +416,17 @@ class MainActivity : ComponentActivity() {
                                         .fillMaxWidth()
                                         .padding(16.dp)
                                 ) {
+                                    // Timer display
+                                    Text(
+                                        text = "Time: $formattedTime",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 8.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+
                                     // Progress bar
                                     LinearProgressIndicator(
                                         progress = animatedProgress,
@@ -581,6 +622,9 @@ class MainActivity : ComponentActivity() {
                                                     onClick = {
                                                         selectedGroup.value = group
                                                         expanded = false
+                                                        // Reset timer when changing groups
+                                                        elapsedSeconds.value = 0
+                                                        isTimerRunning.value = true
                                                         if (group == "All") {
                                                             questions.value = allQuestions.value
                                                         } else {

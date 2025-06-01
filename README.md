@@ -5,8 +5,11 @@ A simple Android quiz application that loads questions from CSV files. This app 
 ## Features
 
 - Load quiz questions from CSV files
-- User-friendly quiz interface
+- User-friendly quiz interface with real-time feedback
 - Support for custom question sets through CSV imports
+- Question grouping functionality
+- Timer tracking for each question group
+- Progress tracking with correct/incorrect answer counts
 
 ## Requirements
 
@@ -41,11 +44,18 @@ The APK file will be generated in:
 
 ## CSV File Format
 
-Your CSV file should follow this format:
+Your CSV file must use semicolons (;) as separators and follow this format:
 ```
-Question,CorrectAnswer,WrongAnswer1,WrongAnswer2,WrongAnswer3
-What is the capital of France?,Paris,London,Berlin,Madrid
+questionText;option1;option2;option3;option4;correctAnswer;group
+What is 2+2?;3;4;5;6;B;Math
+What is the capital of France?;London;Paris;Berlin;Madrid;B;Geography
 ```
+
+### CSV Fields:
+- questionText: The question to be asked
+- option1 to option4: Multiple choice options
+- correctAnswer: Must be A, B, C, or D (corresponding to options 1-4)
+- group: Category or group name for the question (e.g., "Math", "1-50", etc.)
 
 ## Installation
 
@@ -59,7 +69,12 @@ What is the capital of France?,Paris,London,Berlin,Madrid
 1. Launch the app
 2. Select a CSV file containing your quiz questions
 3. Start answering the questions
-4. View your results at the end of the quiz
+   - Timer starts automatically when questions are loaded
+   - Timer resets when changing question groups
+   - Timer stops when all questions in a group are answered
+4. Use the group filter to switch between question sets
+5. Track your progress with the score counter and timer
+6. View your results at the end of the quiz
 
 ## Contributing
 

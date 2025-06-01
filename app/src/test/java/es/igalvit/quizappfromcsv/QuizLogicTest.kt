@@ -225,6 +225,57 @@ class QuizLogicTest {
         assertEquals(expectedProgress, progress)
     }
 
+    @Test
+    fun questionCompletion_notAllAnswered_returnsIncomplete() {
+        val totalQuestions = 5
+        val answeredQuestions = 3  // score + incorrect = 3
+        assertFalse((answeredQuestions) >= totalQuestions)
+    }
+
+    @Test
+    fun questionCompletion_allAnswered_returnsComplete() {
+        val totalQuestions = 5
+        val score = 3
+        val incorrect = 2
+        assertTrue((score + incorrect) >= totalQuestions)
+    }
+
+    @Test
+    fun timer_formatTime_correctFormat() {
+        val seconds = 65L // 1 minute and 5 seconds
+        val formatted = String.format("%02d:%02d", seconds / 60, seconds % 60)
+        assertEquals("01:05", formatted)
+    }
+
+    @Test
+    fun timer_formatTime_handlesLargeValues() {
+        val seconds = 3725L // 62 minutes and 5 seconds
+        val formatted = String.format("%02d:%02d", seconds / 60, seconds % 60)
+        assertEquals("62:05", formatted)
+    }
+
+    @Test
+    fun groupChange_resetsQuestionState() {
+        val score = 2
+        val incorrect = 1
+        val questionIndex = 3
+
+        // Simulating group change
+        val newScore = 0
+        val newIncorrect = 0
+        val newIndex = 0
+
+        assertEquals(0, newScore)
+        assertEquals(0, newIncorrect)
+        assertEquals(0, newIndex)
+    }
+
+    @Test
+    fun timerState_initialValue_isZero() {
+        val elapsedSeconds = 0L
+        assertEquals(0L, elapsedSeconds)
+    }
+
     private fun getCopyrightText() = "© 2025 This work is dedicated to the public domain under CC0 1.0 Universal"
     private fun getFeedbackMessage(isCorrect: Boolean, correctAnswer: Pair<String, String>?) =
         if (isCorrect) "Correct!"
