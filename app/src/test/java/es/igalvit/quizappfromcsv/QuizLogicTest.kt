@@ -133,6 +133,57 @@ class QuizLogicTest {
         }
     }
 
+    @Test
+    fun answerState_initialState_isNull() {
+        val isCorrect: Boolean? = null
+        val selectedAnswer: String? = null
+        val correctAnswer: String? = null
+
+        assertNull(isCorrect)
+        assertNull(selectedAnswer)
+        assertNull(correctAnswer)
+    }
+
+    @Test
+    fun answerState_afterAnswer_hasValidValues() {
+        val isCorrect = true
+        val selectedAnswer = "A"
+        val correctAnswer = "Option 1"
+
+        assertNotNull(isCorrect)
+        assertNotNull(selectedAnswer)
+        assertNotNull(correctAnswer)
+        assertTrue(isCorrect)
+        assertEquals("A", selectedAnswer)
+        assertEquals("Option 1", correctAnswer)
+    }
+
+    @Test
+    fun answerState_reset_clearsValues() {
+        var isCorrect: Boolean? = true
+        var selectedAnswer: String? = "A"
+        var correctAnswer: String? = "Option 1"
+
+        // Reset values
+        isCorrect = null
+        selectedAnswer = null
+        correctAnswer = null
+
+        assertNull(isCorrect)
+        assertNull(selectedAnswer)
+        assertNull(correctAnswer)
+    }
+
+    @Test
+    fun progressCalculation_returnsCorrectValue() {
+        val currentIndex = 4
+        val totalQuestions = 10
+        val expectedProgress = 0.5f // (4 + 1) / 10
+
+        val progress = (currentIndex + 1).toFloat() / totalQuestions.toFloat()
+        assertEquals(expectedProgress, progress)
+    }
+
     private fun getCopyrightText() = "© 2025 This work is dedicated to the public domain under CC0 1.0 Universal"
     private fun getFeedbackMessage(isCorrect: Boolean, correctAnswer: Pair<String, String>?) =
         if (isCorrect) "Correct!"

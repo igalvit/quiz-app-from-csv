@@ -88,6 +88,35 @@ class MainActivityTest {
     }
 
     @Test
+    fun navigationButtons_haveCorrectIcons() {
+        // Load test questions first
+        composeTestRule.activity.setQuestions(listOf(
+            QuizQuestion("Test question?", listOf("A", "B", "C", "D"), "A", "1-50")
+        ))
+
+        with(composeTestRule) {
+            // Check navigation icons
+            onNodeWithContentDescription("Previous Question")
+                .assertExists()
+                .assertHasClickAction()
+
+            onNodeWithContentDescription("Next Question")
+                .assertExists()
+                .assertHasClickAction()
+
+            // Check filter icon
+            onNodeWithContentDescription("Filter Groups")
+                .assertExists()
+                .assertHasClickAction()
+
+            // Check file picker icon
+            onNodeWithContentDescription("Pick CSV File")
+                .assertExists()
+                .assertHasClickAction()
+        }
+    }
+
+    @Test
     fun questionDisplay_showsCorrectFeedback() {
         // Note: This is a simplified test as we cannot directly inject questions
         // In a real scenario, we would need to use dependency injection
@@ -165,5 +194,49 @@ class MainActivityTest {
         // Verify groups are shown
         composeTestRule.onNodeWithText("1-50").assertExists()
         composeTestRule.onNodeWithText("51-100").assertExists()
+    }
+
+    @Test
+    fun scoreDisplay_showsCorrectLayout() {
+        // Load test questions and set some scores
+        composeTestRule.activity.setQuestions(listOf(
+            QuizQuestion("Test question?", listOf("A", "B", "C", "D"), "A", "1-50")
+        ))
+
+        with(composeTestRule) {
+            // Verify score components exist and are properly positioned
+            onNodeWithText("Question")
+                .assertExists()
+                .assertIsDisplayed()
+
+            onNodeWithText("Correct")
+                .assertExists()
+                .assertIsDisplayed()
+
+            onNodeWithText("Incorrect")
+                .assertExists()
+                .assertIsDisplayed()
+
+            // Verify progress indicator exists
+            onNode(hasProgressBarRangeInfo())
+                .assertExists()
+                .assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun scoreDisplay_isAtTop() {
+        // Load test questions
+        composeTestRule.activity.setQuestions(listOf(
+            QuizQuestion("Test question?", listOf("A", "B", "C", "D"), "A", "1-50")
+        ))
+
+        // Get question text position
+        val questionTextBounds = composeTestRule.onNodeWithText("Test question?")
+            .getBoundsInRoot()
+
+        // Verify score display is above question text
+        composeTestRule.onNodeWithText("Question")
+            .assertPositionInRootIsAbove(questionTextBounds.top)
     }
 }
