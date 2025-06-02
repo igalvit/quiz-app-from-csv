@@ -44,6 +44,7 @@ proguard-rules.pro
 *.ap_
 *.dex
 *.class
+*.aab
 
 # Android NDK
 ndkBuild/
