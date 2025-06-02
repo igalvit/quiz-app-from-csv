@@ -3,13 +3,9 @@ package es.igalvit.quizappfromcsv
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
-import android.content.ContentResolver
 import android.net.Uri
-import android.content.Context
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.getOrNull
-import es.igalvit.quizappfromcsv.data.QuestionRepository
 import es.igalvit.quizappfromcsv.data.TestQuestionRepository
 import org.junit.Before
 import org.junit.Rule
@@ -535,7 +531,7 @@ class MainActivityTest {
             QuizQuestion("Q2", listOf("Option A", "Option B", "Option C", "Option D"), "B", "1-50")
         )
         composeTestRule.activity.runOnUiThread {
-            (testRepository as TestQuestionRepository).setMockQuestions(questions)
+            testRepository.setMockQuestions(questions)
             composeTestRule.activity.setQuestions(questions)
         }
         composeTestRule.waitForIdle()
